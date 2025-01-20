@@ -1,0 +1,8 @@
+{
+  "domain": "intelligent_lighting",
+  "name": "Intelligent Lighting",
+  "documentation": "https://example.com",
+  "dependencies": [],
+  "codeowners": ["@artin061"],
+  "version": "1.0.0"
+}
