@@ -1,8 +1,12 @@
 {
-  "domain": "intelligent_lighting",
+  "domain": "haas_intelli_lights",
   "name": "Intelligent Lighting",
-  "documentation": "https://example.com",
+  "version": "1.0.0",
+  "documentation": "https://github.com/artin961/haas_intelli_lights",
   "dependencies": [],
-  "codeowners": ["@artin061"],
-  "version": "1.0.0"
+  "codeowners": ["@artin961"],
+  "requirements": [],
+  "config_flow": false,
+  "iot_class": "local_polling",
+  "homeassistant": "2022.6.0"
 }
