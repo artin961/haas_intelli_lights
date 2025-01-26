@@ -1,0 +1,1 @@
+DOMAIN = "haas_intelli_lights"
