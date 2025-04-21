@@ -35,7 +35,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self.motion_sensors = [
                 state.entity_id
                 for state in self.hass.states.async_all("binary_sensor")
-                if "motion" in state.entity_id
+                if state.attributes.get("device_class") == "motion"
             ]
             self.illuminance_sensors = [
                 state.entity_id
@@ -46,7 +46,9 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             # Handle saving the configuration
             try:
-                if self.hass.data.get(DOMAIN) and user_input["light_entity"] in self.hass.data[DOMAIN].get("instances",[]):
+                if self.hass.data.get(DOMAIN) and user_input[
+                    "light_entity"
+                ] in self.hass.data[DOMAIN].get("instances", []):
                     _LOGGER.error(
                         "Light %s is already configured.", user_input["light_entity"]
                     )
