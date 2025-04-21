@@ -35,7 +35,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self.motion_sensors = [
                 state.entity_id
                 for state in self.hass.states.async_all("binary_sensor")
-                if state.attributes.get("device_class") == "motion"
+                if state.attributes.get("device_class") in ("motion", "occupancy")
             ]
             self.illuminance_sensors = [
                 state.entity_id
