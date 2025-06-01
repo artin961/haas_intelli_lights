@@ -72,7 +72,24 @@ class LightControl:
     async def check_timeout(self):
         """Check if the light should be turned off due to inactivity."""
         _LOGGER.debug("Checking timeouts for %s", self.light_entity)
-        if not self.last_motion_time or self.auto_off_delay <= 0:
+
+        if self.auto_off_delay <= 0:
+            return
+
+        sensor_state = self.hass.states.get(self.motion_sensor)
+        if sensor_state and sensor_state.state.lower() in [
+            "occupied",
+            "detected",
+            "open",
+            "on",
+        ]:
+            _LOGGER.debug(
+                "Motion still active for %s, not turning off", self.light_entity
+            )
+            self.last_motion_time = datetime.now()  # Extend timeout
+            return
+
+        if not self.last_motion_time:
             return
 
         time_diff = datetime.now() - self.last_motion_time
