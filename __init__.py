@@ -1,6 +1,5 @@
 import logging
 import asyncio
-from homeassistant.helpers.typing import HomeAssistantType
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
