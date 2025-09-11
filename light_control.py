@@ -44,7 +44,7 @@ class LightControl:
         self.off_by_integration = False
         self.motion_unsubs: list = []  # store unsubscribe functions for motion sensors
         self.light_unsub = None  # store unsubscribe function for light entity
-        _LOGGER.warning("Loading %s", config)
+        _LOGGER.info("Loaded: %s", config)
 
     async def initialize(self):
         """Initialize motion tracking and start the scheduler."""
@@ -84,44 +84,51 @@ class LightControl:
     async def check_timeout(self):
         """Check if the light should be turned off due to inactivity."""
         try:
+            _LOGGER.debug("Checking timeouts for %s", self.light_entity)
+
             global_toggle = self.hass.data[DOMAIN].get(CONF_GLOBAL_TOGGLE)
             if global_toggle and not global_toggle.is_on:
                 _LOGGER.debug(
                     "Global toggle OFF, ignoring timeouts for %s", self.light_entity
                 )
                 return
-            _LOGGER.debug("Checking timeouts for %s", self.light_entity)
-            if self.auto_off_delay <= 0:
+            light_state = self.hass.states.get(self.light_entity)
+            if not light_state or light_state.state != "on":
+                _LOGGER.debug(
+                    "Skipping %s, not on or missing state!", self.light_entity
+                )
                 return
 
-            for sensor in self.motion_sensors:
-                sensor_state = self.hass.states.get(sensor)
-                if sensor_state and sensor_state.state.lower() in [
-                    "occupied",
-                    "detected",
-                    "open",
-                    "on",
-                ]:
-                    _LOGGER.debug(
-                        "Motion still active for %s via %s", self.light_entity, sensor
-                    )
-                    self.last_motion_time = datetime.now()
-                    return
-
-            if not self.last_motion_time:
+            if self.auto_off_delay <= 0 or not self.last_motion_time:
+                _LOGGER.debug(
+                    "Skipping %s, no timestamp or timeout set!", self.light_entity
+                )
                 return
 
             time_diff = datetime.now() - self.last_motion_time
-            state = self.hass.states.get(self.light_entity)
-
-            if (
-                time_diff >= timedelta(minutes=self.auto_off_delay)
-                and state
-                and state.state == "on"
-            ):
+            if time_diff >= timedelta(minutes=self.auto_off_delay):
+                _LOGGER.debug("Checking sensors for %s as timeout expired", self.light_entity)
+                for sensor in self.motion_sensors:
+                    sensor_state = self.hass.states.get(sensor)
+                    _LOGGER.debug("%s: %s - %s", self.light_entity, sensor, sensor_state.state)
+                    if sensor_state and sensor_state.state.lower() in [
+                        "occupied",
+                        "detected",
+                        "open",
+                        "on",
+                    ]:
+                        _LOGGER.debug(
+                            "Motion still active for %s via %s - %s ",
+                            self.light_entity,
+                            sensor,
+                            sensor_state.state,
+                        )
+                        self.last_motion_time = datetime.now()
+                        return
                 _LOGGER.debug("Turning off %s due to timeout", self.light_entity)
                 self.off_by_integration = True
                 await self._light_turn_off()
+
         except Exception as e:
             _LOGGER.exception("check_timeout crashed for %s: %s", self.light_entity, e)
 
