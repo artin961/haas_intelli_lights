@@ -84,7 +84,7 @@ class LightControl:
     async def check_timeout(self):
         """Check if the light should be turned off due to inactivity."""
         try:
-            _LOGGER.debug("Checking timeouts for %s", self.light_entity)
+            #_LOGGER.debug("Checking timeouts for %s", self.light_entity)
 
             global_toggle = self.hass.data[DOMAIN].get(CONF_GLOBAL_TOGGLE)
             if global_toggle and not global_toggle.is_on:
@@ -94,9 +94,9 @@ class LightControl:
                 return
             light_state = self.hass.states.get(self.light_entity)
             if not light_state or light_state.state != "on":
-                _LOGGER.debug(
-                    "Skipping %s, not on or missing state!", self.light_entity
-                )
+                #_LOGGER.debug(
+                #    "Skipping %s, not on or missing state!", self.light_entity
+                #)
                 return
 
             if self.auto_off_delay <= 0 or not self.last_motion_time:

@@ -31,6 +31,9 @@ async def global_scheduler(hass: HomeAssistant):
             await asyncio.sleep(CHECK_INTERVAL)
             continue
         if DOMAIN in hass.data and "instances" in hass.data[DOMAIN]:
+            _LOGGER.debug(
+                    "Checking %s timeouts...", DOMAIN
+                )
             for light_control in hass.data[DOMAIN]["instances"].values():
                 await light_control.check_timeout()
 

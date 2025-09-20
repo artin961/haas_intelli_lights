@@ -26,6 +26,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hello World."""
 
     def __init__(self):
+        super().__init__() # Ensure propper iniitialisation
         self.lights = []
         self.motion_sensors = []
         self.illuminance_sensors = []
@@ -117,7 +118,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow to runtime changes of current entities."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry):
-        self.config_entry = config_entry
+        super().__init__() # Ensure propper iniitialisation
+        _LOGGER.debug("Saving config for %s <-> %s", self.config_entry.data[LIGHT_ENTYTY_INPUT_NAME], config_entry.data[LIGHT_ENTYTY_INPUT_NAME])
+        # self._config_entry = config_entry # Remove as is deprecated
         self.hass: HomeAssistant = None  # still can use self.hass
 
     async def async_step_init(self, user_input=None):
