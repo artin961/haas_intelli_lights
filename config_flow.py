@@ -119,7 +119,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry):
         super().__init__() # Ensure propper iniitialisation
-        _LOGGER.debug("Saving config for %s <-> %s", self.config_entry.data[LIGHT_ENTYTY_INPUT_NAME], config_entry.data[LIGHT_ENTYTY_INPUT_NAME])
+        _LOGGER.debug("Saving config for %s <-> %s", config_entry.data[LIGHT_ENTYTY_INPUT_NAME], config_entry.data[LIGHT_ENTYTY_INPUT_NAME])
         # self._config_entry = config_entry # Remove as is deprecated
         self.hass: HomeAssistant = None  # still can use self.hass
 
