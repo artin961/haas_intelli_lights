@@ -84,7 +84,7 @@ class LightControl:
     async def check_timeout(self):
         """Check if the light should be turned off due to inactivity."""
         try:
-            #_LOGGER.debug("Checking timeouts for %s", self.light_entity)
+            # _LOGGER.debug("Checking timeouts for %s", self.light_entity)
 
             global_toggle = self.hass.data[DOMAIN].get(CONF_GLOBAL_TOGGLE)
             if global_toggle and not global_toggle.is_on:
@@ -94,9 +94,9 @@ class LightControl:
                 return
             light_state = self.hass.states.get(self.light_entity)
             if not light_state or light_state.state != "on":
-                #_LOGGER.debug(
+                # _LOGGER.debug(
                 #    "Skipping %s, not on or missing state!", self.light_entity
-                #)
+                # )
                 return
 
             if self.auto_off_delay <= 0 or not self.last_motion_time:
@@ -107,10 +107,21 @@ class LightControl:
 
             time_diff = datetime.now() - self.last_motion_time
             if time_diff >= timedelta(minutes=self.auto_off_delay):
-                _LOGGER.debug("Checking sensors for %s as timeout expired", self.light_entity)
+                _LOGGER.debug(
+                    "Checking sensors for %s as timeout expired", self.light_entity
+                )
                 for sensor in self.motion_sensors:
                     sensor_state = self.hass.states.get(sensor)
-                    _LOGGER.debug("%s: %s - %s", self.light_entity, sensor, sensor_state.state)
+                    if sensor_state is None:
+                        _LOGGER.warning(
+                            "Motion sensor %s for light %s does not exist (skipping)",
+                            sensor,
+                            self.light_entity,
+                        )
+                        continue
+                    _LOGGER.debug(
+                        "%s: %s - %s", self.light_entity, sensor, sensor_state.state
+                    )
                     if sensor_state and sensor_state.state.lower() in [
                         "occupied",
                         "detected",
@@ -148,16 +159,19 @@ class LightControl:
                 return
             # Fire only once on state change from off to on
             if (
-                old_state is None or old_state.state == "off"
-            ) and new_state.state == "on":
+                old_state is None
+                or old_state.state.lower() in ("off", "clear", "closed")
+            ) and new_state.state.lower() in ("on", "open", "detected", "occupied"):
+                light_state = self.hass.states.get(light_entity)
                 _LOGGER.debug(
-                    "Motion detected for %s from %s",
+                    "Motion detected for %s from %s, currently: %s",
                     light_entity,
                     event.data.get("entity_id"),
+                    light_state and light_state.state,
                 )
-                light_state = self.hass.states.get(light_entity)
+
                 if light_state and light_state.state == "off":
-                    await self._light_smart_turn_on()
+                    await self._light_smart_turn_on(light_state)
                 elif light_state and light_state.state == "on":
                     # Reset timer on motion while light is on
                     await self._light_reset_timer()
@@ -173,6 +187,10 @@ class LightControl:
             if new_state and new_state.state == "on":
                 _LOGGER.debug("Turn on detected for %s.", light_entity)
                 await self._light_reset_timer()
+            if new_state and new_state.state == "off":
+                self.last_motion_time = None
+                #self.off_by_integration = False
+                _LOGGER.debug("Turn off detected %s.", light_entity)
 
         return state_change
 
@@ -195,38 +213,53 @@ class LightControl:
         _LOGGER.debug("Resetting timer for light %s.", self.light_entity)
         self.last_motion_time = datetime.now()
 
-    async def _light_smart_turn_on(self):
+    async def _light_smart_turn_on(self, light_entity_state):
         """Turn on the light if it was turned off by the integration."""
-        state = self.hass.states.get(self.light_entity)
-        if state and state.state == "off" and self.off_by_integration:
-            # If there is light sensor defined and conditions are not met
-            # return to prevent turning on
-            if self.illuminance_sensor and self.illuminance_threshold:
-                current_illuminance = self.hass.states.get(
-                    self.illuminance_sensor
-                ).state
+        if (
+            not light_entity_state           # 1. light missing
+            or light_entity_state.state != "off"  # 2. already on
+            or not self.off_by_integration   # 3. turned off manually
+        ):
+            _LOGGER.debug(
+                "Skipping smart turn-on, light=%s, state=%s, off_by_integration=%s",
+                self.light_entity,
+                light_entity_state.state if light_entity_state else None,
+                self.off_by_integration,
+            )
+            return
+        # If there is light sensor defined and conditions are not met
+        # return to prevent turning on
+        if self.illuminance_sensor and self.illuminance_threshold:
+            ill_state = self.hass.states.get(self.illuminance_sensor)
+            if ill_state is None:
+                _LOGGER.warning(
+                    "Illuminance sensor %s missing for %s",
+                    self.illuminance_sensor,
+                    self.light_entity,
+                )
+                return
 
-                # Convert current illuminance to a number safely
-                try:
-                    current_illuminance = float(current_illuminance)
-                except (ValueError, TypeError):
-                    _LOGGER.warning(
-                        "Invalid illuminance value for %s: %s",
-                        self.illuminance_sensor,
-                        current_illuminance,
-                    )
-                    return
+            # Convert current illuminance to a number safely
+            try:
+                current_illuminance = float(ill_state.state)
+            except (ValueError, TypeError):
+                _LOGGER.warning(
+                    "Invalid illuminance value for %s: %s",
+                    self.illuminance_sensor,
+                    ill_state.state,
+                )
+                return
 
-                if current_illuminance > self.illuminance_threshold:
-                    _LOGGER.debug(
-                        "Light check for %s, %s above %s",
-                        self.light_entity,
-                        current_illuminance,
-                        self.illuminance_threshold,
-                    )
-                    return
+            if current_illuminance > self.illuminance_threshold:
+                _LOGGER.debug(
+                    "Light check for %s, %s above %s",
+                    self.light_entity,
+                    current_illuminance,
+                    self.illuminance_threshold,
+                )
+                return
 
-            _LOGGER.debug("Reactivating light %s due to motion.", self.light_entity)
-            await self._light_reset_timer()
-            self.off_by_integration = False
-            await self._light_turn_on()
+        _LOGGER.debug("Reactivating light %s due to motion.", self.light_entity)
+        await self._light_reset_timer()
+        self.off_by_integration = False
+        await self._light_turn_on()

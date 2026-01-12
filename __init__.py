@@ -1,5 +1,6 @@
 import logging
 import asyncio
+from contextlib import suppress
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
@@ -10,6 +11,9 @@ from .const import (
     CONF_GLOBAL_TOGGLE,
     LIGHT_ENTYTY_INPUT_NAME,
     ILLUMINANCE_THRESHOLD_INPUT_NAME,
+    MOTION_SENSOR_INPUT_NAME,
+    AUTO_OFF_DELAY_INPUT_NAME,
+    ILLUMMINANCE_SENSOR_INPUT_NAME,
 )
 
 
@@ -31,9 +35,7 @@ async def global_scheduler(hass: HomeAssistant):
             await asyncio.sleep(CHECK_INTERVAL)
             continue
         if DOMAIN in hass.data and "instances" in hass.data[DOMAIN]:
-            _LOGGER.debug(
-                    "Checking %s timeouts...", DOMAIN
-                )
+            _LOGGER.debug("Checking %s timeouts...", DOMAIN)
             for light_control in hass.data[DOMAIN]["instances"].values():
                 await light_control.check_timeout()
 
@@ -46,7 +48,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {"instances": {}, "scheduler_task": None}
 
-    light_config = entry.data
+    light_config = {**entry.data, **entry.options}
 
     # Avoid duplicate instances
     if light_config[LIGHT_ENTYTY_INPUT_NAME] in hass.data[DOMAIN]["instances"]:
@@ -70,7 +72,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             global_scheduler(hass)
         )
         _LOGGER.debug("Starting the scheduler as it seems to not be here.")
-    # 🔹 NEW: forward entry setup to switch.py
+
+    async def _update_listener(hass, entry):
+        cfg = {**entry.data, **entry.options}
+        light_control.motion_sensors = cfg.get(MOTION_SENSOR_INPUT_NAME, [])
+        light_control.auto_off_delay = cfg.get(AUTO_OFF_DELAY_INPUT_NAME, 0)
+        light_control.illuminance_sensor = cfg.get(ILLUMMINANCE_SENSOR_INPUT_NAME)
+        light_control.illuminance_threshold = cfg.get(
+            ILLUMINANCE_THRESHOLD_INPUT_NAME, 0
+        )
+        await light_control.initialize()
+
+    entry.async_on_unload(entry.add_update_listener(_update_listener))
+
+    hass.bus.async_listen_once(
+        "homeassistant_stop", lambda _: hass.data[DOMAIN]["scheduler_task"].cancel()
+    )
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     return True
@@ -78,7 +96,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload an individual light instance."""
-    light_config = entry.data
+
+    light_config = {**entry.data, **entry.options}
     light_entity = light_config[LIGHT_ENTYTY_INPUT_NAME]
 
     if light_entity in hass.data[DOMAIN]["instances"]:
@@ -88,7 +107,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Stop scheduler if no more instances left
     if not hass.data[DOMAIN]["instances"]:
         if hass.data[DOMAIN]["scheduler_task"]:
-            hass.data[DOMAIN]["scheduler_task"].cancel()
+            task = hass.data[DOMAIN]["scheduler_task"]
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
             hass.data[DOMAIN]["scheduler_task"] = None
             _LOGGER.info("Scheduler stopped as no lights are left.")
 

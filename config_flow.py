@@ -26,7 +26,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hello World."""
 
     def __init__(self):
-        super().__init__() # Ensure propper iniitialisation
+        super().__init__()  # Ensure propper iniitialisation
         self.lights = []
         self.motion_sensors = []
         self.illuminance_sensors = []
@@ -66,10 +66,31 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         f"Light {user_input['light_entity']} already configured"
                     )
 
-                entity = self.async_create_entry(
-                    title=user_input[CONF_NAME], data=user_input
+                data = {
+                    CONF_NAME: user_input[CONF_NAME],
+                    LIGHT_ENTYTY_INPUT_NAME: user_input[LIGHT_ENTYTY_INPUT_NAME],
+                }
+
+                options = {
+                    MOTION_SENSOR_INPUT_NAME: user_input.get(
+                        MOTION_SENSOR_INPUT_NAME, []
+                    ),
+                    AUTO_OFF_DELAY_INPUT_NAME: user_input.get(
+                        AUTO_OFF_DELAY_INPUT_NAME, 0
+                    ),
+                    ILLUMMINANCE_SENSOR_INPUT_NAME: user_input.get(
+                        ILLUMMINANCE_SENSOR_INPUT_NAME
+                    ),
+                    ILLUMINANCE_THRESHOLD_INPUT_NAME: user_input.get(
+                        ILLUMINANCE_THRESHOLD_INPUT_NAME, 0
+                    ),
+                }
+
+                return self.async_create_entry(
+                    title=user_input[CONF_NAME],
+                    data=data,
+                    options=options,
                 )
-                return entity
             except ValueError as e:
                 errors["base"] = f"Error: {e}"
 
@@ -118,8 +139,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     """Handle options flow to runtime changes of current entities."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry):
-        super().__init__() # Ensure propper iniitialisation
-        _LOGGER.debug("Saving config for %s <-> %s", config_entry.data[LIGHT_ENTYTY_INPUT_NAME], config_entry.data[LIGHT_ENTYTY_INPUT_NAME])
+        super().__init__()  # Ensure propper iniitialisation
+        _LOGGER.debug(
+            "Saving config for %s <-> %s",
+            config_entry.data[LIGHT_ENTYTY_INPUT_NAME],
+            config_entry.data[LIGHT_ENTYTY_INPUT_NAME],
+        )
         # self._config_entry = config_entry # Remove as is deprecated
         self.hass: HomeAssistant = None  # still can use self.hass
 
@@ -127,21 +152,28 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Manage options for an existing light entry."""
         if user_input is not None:
             light_entity = self.config_entry.data[LIGHT_ENTYTY_INPUT_NAME]
-            light_control = self.hass.data[DOMAIN]["instances"].get(light_entity)
+            #light_control = self.hass.data[DOMAIN]["instances"].get(light_entity)
+            light_control = self.hass.data.get(DOMAIN, {}).get("instances", {}).get(light_entity)
+
             if light_control:
                 # Update motion sensors
-                new_motion_sensors = user_input.get(MOTION_SENSOR_INPUT_NAME, [])
-                if isinstance(new_motion_sensors, str):
-                    new_motion_sensors = [new_motion_sensors]  # normalize to list
-                light_control.motion_sensors = new_motion_sensors
+                if MOTION_SENSOR_INPUT_NAME in user_input:
+                    new_motion_sensors = user_input.get(MOTION_SENSOR_INPUT_NAME, [])
+                    if isinstance(new_motion_sensors, str):
+                        new_motion_sensors = [new_motion_sensors]
+                    light_control.motion_sensors = new_motion_sensors
 
                 # Update auto-off and threshold
                 light_control.auto_off_delay = user_input.get(
                     AUTO_OFF_DELAY_INPUT_NAME, 0
                 )
-                light_control.illuminance_sensor = user_input.get(
-                    ILLUMMINANCE_SENSOR_INPUT_NAME
-                )
+
+                if ILLUMMINANCE_SENSOR_INPUT_NAME in user_input:
+                    light_control.illuminance_sensor = user_input.get(
+                        ILLUMMINANCE_SENSOR_INPUT_NAME
+                    )
+
+                
                 light_control.illuminance_threshold = user_input.get(
                     ILLUMINANCE_THRESHOLD_INPUT_NAME, 0
                 )
@@ -165,6 +197,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         illuminance_sensor = options.get(
             ILLUMMINANCE_SENSOR_INPUT_NAME, data.get(ILLUMMINANCE_SENSOR_INPUT_NAME)
         )
+
         auto_off_delay = options.get(
             AUTO_OFF_DELAY_INPUT_NAME, data.get(AUTO_OFF_DELAY_INPUT_NAME, 0)
         )
@@ -201,7 +234,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                         )
                     ),
                     vol.Optional(
-                        ILLUMMINANCE_SENSOR_INPUT_NAME
+                        ILLUMMINANCE_SENSOR_INPUT_NAME,
+                        default=illuminance_sensor,
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=illuminance_entities,
