@@ -1,0 +1,14 @@
+{
+  "name": "Homeassistant Inteligent Lights",
+  "domain": "homeassistant_intelligent_lights",
+  "version": "1.0.0",
+  "documentation": "https://github.com/artin961/haas_intelli_lights",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": [
+    "@artin961"
+  ],
+  "iot_class": "local_polling",
+  "homeassistant": "2023.10.0",
+  "render_readme": true
+}

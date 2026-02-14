@@ -26,6 +26,13 @@ This Home Assistant custom integration provides intelligent light control based 
 
 1. Download the `haas_intelli_lights` custom component and place it in your Home Assistant `custom_components` directory.
 
+## Installation via HACS
+1. Add this repository in HACS → Integrations → + → Custom Repositories
+2. Set type to `Integration`
+3. Install `Homeassistant Inteligent Light`
+4. Restart Home Assistant
+5. Configure via Configuration → Integrations
+
 
 
 
