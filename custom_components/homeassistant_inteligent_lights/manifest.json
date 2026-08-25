@@ -1,13 +1,12 @@
 {
   "domain": "haas_intelli_lights",
   "name": "Intelligent Lighting",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "documentation": "https://github.com/artin961/haas_intelli_lights",
   "dependencies": [],
   "codeowners": ["@artin961"],
   "requirements": [],
   "config_flow": true,
-  "iot_class": "local_polling",
-  "homeassistant": "2022.6.0",
-  "icon": "mdi:lightbulb-multiple"
+  "iot_class": "local_push",
+  "homeassistant": "2024.1.0"
 }
